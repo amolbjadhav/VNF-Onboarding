@@ -1,0 +1,95 @@
+#
+# Copyright (c) 2017 GigaSpaces Technologies Ltd. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+tosca_definitions_version: tosca_simple_yaml_1_0
+
+imports:
+  - types/vcloud.yaml
+
+topology_template:
+  inputs:
+    template:
+        type: string
+        description: VCloud template name
+        default: {{ image_id }}
+    epa_description:
+        type: string
+        description: EPA Description 
+        default: {{ epa_type }}
+    ram:
+        type: integer
+        description: Amount of RAM [GB]
+        default: {{ ram }}
+    cpu:
+        type: integer
+        description: Number of CPUs
+        default: {{ cpu }}
+    network1_name:
+      default: {{ nic1_name }}
+    network2_name:
+      default: {{ nic2_name }}
+    network3_name:
+      default: {{ nic3_name }}
+  {% if nic4_name %}
+    network4_name:
+      default: {{ nic4_name }}
+  {% endif %} {% if nic5_name %}
+    network5_name:
+      default: {{ nic5_name }}
+  {% endif %}
+
+  node_templates:
+
+    {{ vnf_name }}_host:
+      type: vcloud.nodes.Server
+      properties:
+        name: {{ vnf_name }}
+        template: { get_input: template }
+        hardware:
+          memory: { get_input: ram }
+          cpu: { get_input: cpu }
+      attributes:
+        networks:
+          network1:
+            network_name: { get_input: network1_name }
+          network2:
+            network_name: { get_input: network2_name }
+          network3:
+            network_name: { get_input: network3_name } {% if nic4_name %}
+          network4:
+            network_name: { get_input: network4_name } {% endif %} {% if nic5_name %}
+          network5:
+            network_name: { get_input: network5_name } {% endif %}
+
+{% if scripts %}    {{ vnf_name }}:
+      type: tosca.nodes.SoftwareComponent
+      requirements:
+        - host: {{ vnf_name}}_host
+      interfaces:
+        Standard: {% if scripts.create %}
+           create:
+             implementation: {{ scripts.create }}
+             inputs:
+               HOST_IP: { get_attribute: [{{ vnf_name }}_host, private_address] }{% endif %} {% if scripts.configure %}
+           configure:
+             implementation: {{ scripts.configure }}
+             inputs:
+               HOST_IP: { get_attribute: [{{ vnf_name }}_host, private_address] }{% endif %} {% if scripts.start %}
+           delete:
+             implementation: {{ scripts.delete }}
+             inputs:
+               HOST_IP: { get_attribute: [{{ vnf_name }}_host, private_address] }{% endif %}
+{% endif %}
